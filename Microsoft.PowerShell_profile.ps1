@@ -102,3 +102,27 @@ if (Get-Module PSReadLine | Select-Object -ExpandProperty Version | Where-Object
 Set-PSReadLineOption -PredictionSource History
 Set-PSReadLineOption -PredictionViewStyle ListView
 Set-PSReadLineOption -EditMode Windows
+Set-PSReadLineOption -Colors @{
+    Command   = 'Yellow'
+    Parameter = 'Green'
+    String    = 'DarkCyan'
+}
+
+# ********************* #
+# ** Custom Commands ** #
+# ********************* #
+
+# Credit: https://github.com/ChrisTitusTech/powershell-profile/blob/main/Microsoft.PowerShell_profile.ps1
+
+function touch($file) { "" | Out-File $file -Encoding ASCII }
+
+function ff($name) {
+    if ($null -eq $name) {
+        Write-Host "Please provide a file name to search for" -ForegroundColor Red
+        return
+    }
+
+    Get-ChildItem -recurse -filter "*${name}*" -ErrorAction SilentlyContinue | ForEach-Object {
+        Write-Output "$($_.directory)\$($_)"
+    }
+}
