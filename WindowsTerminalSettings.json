@@ -1,0 +1,47 @@
+{
+    "actions": [
+        // Scroll between prompts
+        {
+            "keys": "ctrl+up",
+            "command": {
+                "action": "scrollToMark",
+                "direction": "previous"
+            },
+        },
+        {
+            "keys": "ctrl+down",
+            "command": {
+                "action": "scrollToMark",
+                "direction": "next"
+            },
+        },
+        // Add the ability to select a command's output
+        {
+            "keys": "ctrl+g",
+            "command": {
+                "action": "selectOutput",
+                "direction": "prev"
+            },
+        },
+        {
+            "command": {
+                "action": "selectOutput",
+                "direction": "next"
+            },
+        }
+    ],
+    "profiles": {
+        "defaults": {
+            // Enable marks on the scrollbar
+            "showMarksOnScrollbar": true,
+            // Needed for both pwsh, CMD and bash shell integration
+            "autoMarkPrompts": true,
+            // Add support for a right-click context menu
+            // You can also just bind the `showContextMenu` action
+            "experimental.rightClickContextMenu": true,
+            "font": {
+                "face": "CaskaydiaCove Nerd Font"
+            }
+        }
+    }
+}
