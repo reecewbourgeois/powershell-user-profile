@@ -9,21 +9,7 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
   Exit
 }
 
-# *************** #
-# ** Constants ** #
-# *************** #
-
-$caskaydiaCoveNerdFontLink = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/CascadiaCode.zip"
-
-$userFolder = "C:\Users\$env:username"
-$downloadsFolder = "$userFolder\Downloads"
-$appDataLocal = "$userFolder\AppData\Local"
-
-# ******************* #
-# ** Initial Setup ** #
-# ******************* #
-
-# Check for Profile Updates
+#region Update Profile (uncomment to enable)
 function Update-Profile {
   try {
     $url = "https://raw.githubusercontent.com/reecewbourgeois/powershell-user-profile/main/Microsoft.PowerShell_profile.ps1"
@@ -42,10 +28,18 @@ function Update-Profile {
     Remove-Item "$env:temp/Microsoft.PowerShell_profile.ps1" -ErrorAction SilentlyContinue
   }
 }
-Update-Profile
+# Update-Profile
+#endregion Update Profile
 
+
+$userFolder = "C:\Users\$env:username"
+$downloadsFolder = "$userFolder\Downloads"
+$appDataLocal = "$userFolder\AppData\Local"
+
+#region Caskaydia Cove Nerd Font
 # See if Caskaydia Cove Nerd Font is installed
 if (-not(Test-Path "$appDataLocal\Microsoft\Windows\Fonts\CaskaydiaCoveNerdFont-Regular.ttf")) {
+  $caskaydiaCoveNerdFontLink = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.3.0/CascadiaCode.zip"
   # Download the font
   Invoke-WebRequest -Uri $caskaydiaCoveNerdFontLink -OutFile "$downloadsFolder\CaskaydiaCoveNerdFont.zip"
 
@@ -61,66 +55,114 @@ if (-not(Test-Path "$appDataLocal\Microsoft\Windows\Fonts\CaskaydiaCoveNerdFont-
   Remove-Item -Path "$downloadsFolder\CaskaydiaCoveNerdFont.zip"
   Remove-Item -Path "$downloadsFolder\CaskaydiaCoveNerdFont" -Recurse
 }
+#endregion Caskaydia Cove Nerd Font
 
-# See if oh-my-posh is installed
-if (-not(Test-Path "$appDataLocal\Programs\oh-my-posh")) {
-  # Install oh-my-posh
-  Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://ohmyposh.dev/install.ps1'))
+$Global:__LastHistoryId = -1
 
-  # Add to path so it can be run from within the same session
-  $env:Path += ";$appDataLocal\Programs\oh-my-posh\bin"
+# Reference: https://learn.microsoft.com/en-us/windows/terminal/tutorials/shell-integration
+function Global:__Terminal-Get-LastExitCode {
+  if ($? -eq $True) {
+    return 0
+  }
+  $LastHistoryEntry = $(Get-History -Count 1)
+  $IsPowerShellError = $Error[0].InvocationInfo.HistoryId -eq $LastHistoryEntry.Id
+  if ($IsPowerShellError) {
+    return -1
+  }
+  return $LastExitCode
 }
 
-# **************** #
-# ** oh-my-posh ** #
-# **************** #
+function prompt {
+  $out = ""
 
-# Grab the theme if it is not present
-if (-not(Test-Path "$appDataLocal\Programs\oh-my-posh\themes\reecewbourgeois-theme.json")) {
-  # Download the theme to the themes folder
-  Invoke-WebRequest -Uri "https://raw.githubusercontent.com/reecewbourgeois/powershell-user-profile/main/reecewbourgeois-theme.json" -OutFile "$appDataLocal\Programs\oh-my-posh\themes\reecewbourgeois-theme.json"
+  # First, emit a mark for the _end_ of the previous command.
+  $gle = $(__Terminal-Get-LastExitCode);
+  $LastHistoryEntry = $(Get-History -Count 1)
+  
+  # Skip finishing the command if the first command has not yet started
+  if ($Global:__LastHistoryId -ne -1) {
+    if ($LastHistoryEntry.Id -eq $Global:__LastHistoryId) {
+      # No history entry (e.g., Ctrl+C or Enter on empty command)
+      $out += "`e]133;D`a"
+    }
+    else {
+      $out += "`e]133;D;$gle`a"
+    }
+  }
+
+  # Get current directory
+  $loc = $($executionContext.SessionState.Path.CurrentLocation)
+
+  # Emit mark for prompt start
+  $out += "`e]133;A$([char]07)"
+
+  # Emit CWD information
+  $out += "`e]9;9;`"$loc`"$([char]07)"
+
+  # Helper function to get Git branch info
+  function Get-GitBranch {
+    $branch = $null
+    try {
+      $branch = & git rev-parse --abbrev-ref HEAD 2>$null
+    }
+    catch {}
+    return $branch
+  }
+
+  # Colors (ANSI Escape Codes)
+  $colorGreen = "`e[92m"   # Light Green
+  $colorBlue = "`e[38;2;61;172;196m"   # Light Cyan/Blue
+  $colorPurple = "`e[38;2;167;55;219m"  # Purple
+  $colorGray = "`e[38;5;235m"   # Dark Gray
+  
+  # Background Colors
+  $bgDarkGray = "`e[48;5;235m" # Dark gray background
+  
+  # Resets
+  $colorReset = "`e[0m"    # Reset color
+  $bgReset = "`e[49m"       # Reset background
+  $fullColorReset = "$colorReset$bgReset"  # Reset both color and background
+
+  # Powerline Separators (for rounded edges)
+  $leftRounded = "$fullColorReset$colorGray$fullColorReset"  # Left separator with dark gray background
+  $rightRounded = "$fullColorReset$colorGray$fullColorReset"   # Right separator in gray, no background
+
+  $cwd = $PWD.Path
+  $homePath = [System.Environment]::GetFolderPath("UserProfile")
+
+  # Replace home directory with ~
+  if ($cwd -like "$homePath*") {
+    $cwd = $cwd -replace [regex]::Escape($homePath), "~"
+  }
+
+  # Get current time
+  $time = Get-Date -Format "HH:mm:ss"
+
+  # Get Git branch info
+  $gitBranch = Get-GitBranch
+  $gitSegment = if ($gitBranch) { "$leftRounded$bgDarkGray$colorPurple $gitBranch$rightRounded" } else { "" }
+
+  # Constructing the prompt
+  $promptText = @"
+$colorGreen┌ [$time] $leftRounded$bgDarkGray$colorBlue $cwd$rightRounded $gitSegment
+$colorGreen└ ❯$fullColorReset
+"@
+
+  # Append the prompt text to the output
+  $out += $promptText
+
+  # Emit mark for prompt end (Command started)
+  $out += "`e]133;B$([char]07)"
+
+  $Global:__LastHistoryId = $LastHistoryEntry.Id
+
+  # Display the final output
+  Write-Host $out -NoNewline
+  return " "
 }
 
-oh-my-posh init pwsh --config "$appDataLocal\Programs\oh-my-posh\themes\reecewbourgeois-theme.json" | Invoke-Expression
 
-# ******************** #
-# ** Terminal Icons ** #
-# ******************** #
-
-# See if Terminal Icons is installed
-if (-not(Test-Path "$userFolder\Documents\WindowsPowerShell\Modules\Terminal-Icons")) {
-  # Install Terminal Icons
-  Install-Module -Name Terminal-Icons -Scope CurrentUser
-}
-
-Import-Module -Name Terminal-Icons
-
-# **************** #
-# ** PSReadLine ** #
-# **************** #
-
-# PSReadLine won't work if PowerShellGet is the simplified version
-if (Get-Module PowerShellGet | Select-Object -ExpandProperty Version | Where-Object { $_ -eq 1.0.0 }) {
-  Write-Host "ERROR: Outdated PowerShellGet module detected. Please update it by running ""Install-Module -Name PowerShellGet -Force"" in an admin terminal and then restarting powershell." -ForegroundColor Red
-  Pause
-  Exit
-}
-
-# TODO: Need to test this
-# Update PSReadLine so we have the extra options
-if (Get-Module PSReadLine | Select-Object -ExpandProperty Version | Where-Object { $_ -lt 2.4.0 }) {
-  Install-Module PSReadLine -AllowPrerelease -Force
-}
-
-Set-PSReadLineOption -PredictionSource History
-Set-PSReadLineOption -PredictionViewStyle ListView
-Set-PSReadLineOption -EditMode Windows
-Set-PSReadLineOption -Colors @{
-  Command   = 'Yellow'
-  Parameter = 'Green'
-  String    = 'DarkCyan'
-}
-
+#region Custom Commands
 # ********************* #
 # ** Custom Commands ** #
 # ********************* #
@@ -129,6 +171,7 @@ Set-PSReadLineOption -Colors @{
 
 function touch($file) { "" | Out-File $file -Encoding ASCII }
 
+# Find File
 function ff($name) {
   if ($null -eq $name) {
     Write-Host "Please provide a file name to search for" -ForegroundColor Red
@@ -199,3 +242,4 @@ function Get-DirectorySize {
     }
   }
 }
+#endregion Custom Commands

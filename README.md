@@ -1,6 +1,6 @@
 # How to Use
 
-1. Open a powershell terminal
+1. Open a **PowerShell 7** terminal
 2. Run `notepad $PROFILE`
    - Or use whatever editor you want
 3. Paste the contents of the `.ps1` file
