@@ -39,6 +39,8 @@
             // Add support for a right-click context menu
             // You can also just bind the `showContextMenu` action
             "experimental.rightClickContextMenu": true,
+            // Move cursor with mouse
+            "experimental.repositionCursorWithMouse": true,
             "font": {
                 "face": "CaskaydiaCove Nerd Font"
             }
